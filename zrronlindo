@@ -1,0 +1,179 @@
+-- Carregar a biblioteca Rayfield UI
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/SiriusSoftwareLtd/Rayfield/main/source.lua'))()
+
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local Camera = game.Workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+-- Criar Janela do Cheat
+local Window = Rayfield:CreateWindow({
+    Name = "Cheat Menu",
+    LoadingTitle = "Carregando...",
+    LoadingSubtitle = "By SeuNome",
+    KeySystem = false
+})
+
+-- Criar Aba "Jogador"
+local PlayerTab = Window:CreateTab("Jogador", 4483362458)
+
+-- Variáveis
+getgenv().AimbotEnabled = false
+getgenv().AimbotTarget = "Head"
+getgenv().TeamCheck = false
+getgenv().WallCheck = false
+getgenv().ESPEnabled = false
+getgenv().FOV = 70
+
+-- Função para verificar linha de visão
+local function IsVisible(target)
+    local origin = Camera.CFrame.Position
+    local direction = (target.Position - origin).Unit * (target.Position - origin).Magnitude
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+
+    local result = workspace:Raycast(origin, direction, raycastParams)
+    return result == nil or result.Instance:IsDescendantOf(target.Parent)
+end
+
+-- Função para encontrar o jogador mais próximo
+local function GetClosestPlayer()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(getgenv().AimbotTarget) then
+            if getgenv().TeamCheck and player.Team == LocalPlayer.Team then
+                continue
+            end
+
+            local targetPart = player.Character[getgenv().AimbotTarget]
+            local distance = (targetPart.Position - LocalPlayer.Character.Head.Position).Magnitude
+
+            if distance < shortestDistance then
+                if getgenv().WallCheck and not IsVisible(targetPart) then
+                    continue
+                end
+                shortestDistance = distance
+                closestPlayer = targetPart
+            end
+        end
+    end
+    return closestPlayer
+end
+
+-- Ativar o Aimbot automaticamente ao se aproximar
+RunService.RenderStepped:Connect(function()
+    if getgenv().AimbotEnabled then
+        local target = GetClosestPlayer()
+        if target then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+        end
+    end
+end)
+
+-- Opções dentro da aba "Jogador"
+PlayerTab:CreateToggle({
+    Name = "Aimbot",
+    CurrentValue = false,
+    Flag = "AimbotToggle",
+    Callback = function(Value)
+        getgenv().AimbotEnabled = Value
+    end,
+})
+
+PlayerTab:CreateDropdown({
+    Name = "Parte do Corpo",
+    Options = {"Head", "Torso"},
+    CurrentOption = "Head",
+    Flag = "TargetPartDropdown",
+    Callback = function(Option)
+        getgenv().AimbotTarget = Option
+    end,
+})
+
+PlayerTab:CreateToggle({
+    Name = "Team Check (Ignorar Aliados)",
+    CurrentValue = false,
+    Flag = "TeamCheckToggle",
+    Callback = function(Value)
+        getgenv().TeamCheck = Value
+    end,
+})
+
+PlayerTab:CreateToggle({
+    Name = "Wall Check (Ignorar Atrás da Parede)",
+    CurrentValue = false,
+    Flag = "WallCheckToggle",
+    Callback = function(Value)
+        getgenv().WallCheck = Value
+    end,
+})
+
+-- Função para ativar/desativar ESP
+local function ToggleESP(state)
+    getgenv().ESPEnabled = state
+    if state then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local character = player.Character
+
+                -- Criar nome acima do jogador
+                local Billboard = Instance.new("BillboardGui", character)
+                Billboard.Adornee = character:FindFirstChild("Head")
+                Billboard.Size = UDim2.new(0, 100, 0, 50)
+                Billboard.StudsOffset = Vector3.new(0, 2, 0)
+                Billboard.AlwaysOnTop = true
+
+                local TextLabel = Instance.new("TextLabel", Billboard)
+                TextLabel.Size = UDim2.new(1, 0, 1, 0)
+                TextLabel.Text = player.Name
+                TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                TextLabel.BackgroundTransparency = 1
+
+                -- Criar aura branca ao redor do corpo
+                for _, part in pairs(character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        local Highlight = Instance.new("Highlight", part)
+                        Highlight.FillColor = Color3.fromRGB(255, 255, 255)
+                        Highlight.FillTransparency = 0.5
+                    end
+                end
+            end
+        end
+    else
+        -- Remover ESP
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local character = player.Character
+                for _, v in pairs(character:GetChildren()) do
+                    if v:IsA("BillboardGui") or v:IsA("Highlight") then
+                        v:Destroy()
+                    end
+                end
+            end
+        end
+    end
+end
+
+PlayerTab:CreateToggle({
+    Name = "ESP",
+    CurrentValue = false,
+    Flag = "ESPToggle",
+    Callback = function(Value)
+        ToggleESP(Value)
+    end,
+})
+
+PlayerTab:CreateSlider({
+    Name = "FOV",
+    Range = {30, 120},
+    Increment = 1,
+    CurrentValue = 70,
+    Flag = "FOVSlider",
+    Callback = function(value)
+        getgenv().FOV = value
+        Camera.FieldOfView = value
+    end,
+})
