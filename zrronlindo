@@ -10,7 +10,7 @@ local LocalPlayer = Players.LocalPlayer
 local Window = Rayfield:CreateWindow({
     Name = "Cheat Menu",
     LoadingTitle = "Carregando...",
-    LoadingSubtitle = "By SeuNome",
+    LoadingSubtitle = "By Tavin",
     KeySystem = false
 })
 
